@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreTranslationRequest extends FormRequest
 {
@@ -15,7 +16,14 @@ class StoreTranslationRequest extends FormRequest
     {
         return [
             'locale' => 'required|string|max:10',
-            'key'    => 'required|string|max:255|unique:translations,key,NULL,id,locale,' . $this->locale,
+            'key'    => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('translations')->where(function ($query) {
+                    return $query->where('locale', $this->input('locale'));
+                }),
+            ],
             'value'  => 'required|string',
             'tags'   => 'nullable|array',
             'tags.*' => 'integer|exists:tags,id',

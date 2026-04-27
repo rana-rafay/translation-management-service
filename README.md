@@ -1,66 +1,371 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Translation Management Service
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+An API-driven Translation Management Service built with Laravel 12, Redis. Designed to store, manage, and export translations across multiple locales with contextual tagging support.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Table of Contents
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- [Overview](#overview)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Design Decisions](#design-decisions)
+- [Database Schema](#database-schema)
+- [API Endpoints](#api-endpoints)
+- [Setup Instructions](#setup-instructions)
+- [API Documentation](#api-documentation)
+- [Running Tests](#running-tests)
+- [Performance](#performance)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## Overview
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+The Translation Management Service allows developers and content managers to:
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+- Store translations for multiple locales (en, fr, es, ur, de, etc.)
+- Tag translations for context (mobile, web, desktop)
+- Create, update, view, and search translations
+- Export translations as JSON for frontend applications like Vue.js
+- Secure all endpoints with token-based authentication via Laravel Sanctum
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+---
 
-## Laravel Sponsors
+## Tech Stack
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+| Technology | Purpose |
+|---|---|
+| Laravel 12 | PHP Framework |
+| MySQL 8.0 | Primary Database |
+| Redis | Caching Layer |
+| Laravel Sanctum | API Authentication |
+| Nginx | Web Server |
+| Docker | Containerization |
+| PHPUnit | Testing |
 
-### Premium Partners
+---
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+## Architecture
 
-## Contributing
+The application follows a layered architecture with clear separation of concerns:
+```
+Request
+   │
+Router
+   │
+Middleware   ← Sanctum Auth
+   │
+Controller   ← Handles Request / Response Only
+   │
+Service      ← All Business Logic
+   │
+Repository   ← All Database Queries
+   │
+Model        ← Eloquent + Relationships
+   │
+Database
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Controller only holds the request and response. Business logic is in the services, and database queries are in the repository.
 
-## Code of Conduct
+### Folder Structure
+```
+translation-management-service/
+├── app/
+│   ├── Http/
+│   │   ├── Controllers/
+│   │   │   └── Api/
+│   │   │       ├── AuthController.php
+│   │   │       ├── TagController.php
+│   │   │       └── TranslationController.php
+│   │   ├── Requests/
+│   │   │   ├── StoreTranslationRequest.php
+│   │   │   └── UpdateTranslationRequest.php
+│   │   └── Resources/
+│   │       └── TranslationResource.php
+│   ├── Models/
+│   │   ├── Tag.php
+│   │   ├── Translation.php
+│   │   └── User.php
+│   ├── Repositories/
+│   │   ├── Contracts/
+│   │   │   └── TranslationRepositoryInterface.php
+│   │   └── TranslationRepository.php
+│   ├── Services/
+│   │   └── TranslationService.php
+│   └── Providers/
+│       └── AppServiceProvider.php
+├── database/
+│   ├── factories/
+│   │   ├── TagFactory.php
+│   │   └── TranslationFactory.php
+│   ├── migrations/
+│   │   ├── create_users_table.php
+│   │   ├── create_personal_access_tokens_table.php
+│   │   ├── create_translations_table.php
+│   │   ├── create_tags_table.php
+│   │   └── create_translation_tag_table.php
+│   └── seeders/
+│       ├── DatabaseSeeder.php
+│       ├── TagSeeder.php
+│       └── TranslationSeeder.php
+├── routes/
+│   ├── api.php
+│   └── web.php
+├── tests/
+│   ├── Feature/
+│   │   ├── AuthTest.php
+│   │   ├── ExportTest.php
+│   │   ├── TagTest.php
+│   │   └── TranslationTest.php
+│   └── Unit/
+│       └── ExampleTest.php
+├── .env
+├── .env.example
+├── docker-compose.yml
+├── Dockerfile
+└── README.md
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+---
 
-## Security Vulnerabilities
+## Design Decisions
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### 1. Repository Pattern
+All database queries are isolated in the Repository layer. This keeps the Service layer clean and makes it easy to swap the data source in the future without touching business logic.
 
-## License
+### 2. Service Layer
+All business logic lives in the Service layer. Controllers are kept thin — they only receive the request, call the service, and return the response.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### 3. Interface Binding
+The Service layer depends on `TranslationRepositoryInterface` not the concrete `TranslationRepository`. This follows the Dependency Inversion Principle (SOLID) and makes the codebase easily testable and extendable.
+
+### 4. Caching Strategy
+The export endpoint is cached using Redis. The cache is automatically invalidated whenever a translation is created, updated, or deleted. This ensures the frontend always receives fresh translations while keeping response times under 500ms even with 100k+ records.
+
+### 5. Token-Based Authentication
+Laravel Sanctum is used for API authentication. It is lightweight, built into Laravel, and perfectly suited for API token management without the overhead of OAuth2 (Passport).
+
+### 6. Pagination
+The translations list endpoint returns paginated results (50 per page) to ensure consistent performance regardless of the number of records in the database.
+
+### 7. Database Indexing
+The following indexes are in place for optimal query performance:
+- Index on `translations.locale`
+- Index on `translations.key`
+- Unique composite index on `translations.locale` + `translations.key`
+- Index on `translation_tag.translation_id`
+- Index on `translation_tag.tag_id`
+
+---
+
+## Database Schema
+```
+translations
+├── id (PK)
+├── locale (indexed)
+├── key (indexed)
+├── value
+├── created_at
+└── updated_at
+tags
+├── id (PK)
+├── name (unique)
+├── created_at
+└── updated_at
+translation_tag (pivot)
+├── id (PK)
+├── translation_id (FK → translations.id)
+└── tag_id (FK → tags.id)
+users
+├── id (PK)
+├── name
+├── email (unique)
+├── password
+├── created_at
+└── updated_at
+```
+
+---
+
+## API Endpoints
+
+### Authentication
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| POST | `/api/auth/register` | No | Register a new user |
+| POST | `/api/auth/login` | No | Login and get token |
+| POST | `/api/auth/logout` | Yes | Logout and revoke token |
+
+### Tags
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| GET | `/api/tags` | Yes | List all tags |
+| POST | `/api/tags` | Yes | Create a tag |
+| GET | `/api/tags/{id}` | Yes | View a tag |
+| PUT | `/api/tags/{id}` | Yes | Update a tag |
+| DELETE | `/api/tags/{id}` | Yes | Delete a tag |
+
+### Translations
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| GET | `/api/translations` | Yes | List and search translations |
+| POST | `/api/translations` | Yes | Create a translation |
+| GET | `/api/translations/{id}` | Yes | View a translation |
+| PUT | `/api/translations/{id}` | Yes | Update a translation |
+| DELETE | `/api/translations/{id}` | Yes | Delete a translation |
+
+### Export
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| GET | `/api/export/{locale}` | No | Export all translations for a locale |
+
+### Search Parameters
+The `/api/translations` endpoint supports the following query parameters:
+
+| Parameter | Description | Example |
+|---|---|---|
+| `locale` | Filter by locale | `?locale=en` |
+| `key` | Search by key | `?key=welcome` |
+| `content` | Search by value | `?content=Welcome` |
+| `tag` | Filter by tag name | `?tag=mobile` |
+
+---
+
+## Setup Instructions
+
+### Requirements
+- PHP 8.3+
+- Composer
+- MySQL 8.0+
+- Redis
+
+### Local Setup
+
+**1. Clone the repository**
+```bash
+git clone https://github.com/your-username/translation-management-service.git
+cd translation-management-service
+```
+
+**2. Install dependencies**
+```bash
+composer install
+```
+
+**3. Copy environment file**
+```bash
+cp .env.example .env
+```
+
+**4. Generate application key**
+```bash
+php artisan key:generate
+```
+
+**5. Configure your `.env`**
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=laravel_translation
+DB_USERNAME=root
+DB_PASSWORD=
+
+CACHE_STORE=redis
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+```
+
+**6. Run migrations**
+```bash
+php artisan migrate
+```
+
+**7. Seed the database with 100k records**
+```bash
+php artisan db:seed
+```
+
+**8. Generate Swagger documentation**
+```bash
+php artisan l5-swagger:generate
+```
+
+**9. Start the server**
+```bash
+php artisan serve
+```
+
+API is now available at `http://127.0.0.1:8000/api`
+
+---
+
+## API Documentation
+
+Interactive API documentation is available via Swagger UI.
+
+### Accessing the Documentation
+
+Start the server and visit:
+http://127.0.0.1:8000/api/documentation
+
+### How to Authenticate in Swagger UI
+
+1. Register or Login via the Auth endpoints to get a token
+2. Click the **Authorize** button (top right of Swagger UI)
+3. Enter your token in this format:
+Bearer your_token_here
+4. Click **Authorize** then **Close**
+5. All protected endpoints will now work directly from the browser
+
+### Regenerating the Documentation
+
+If you make changes to the API, regenerate the docs with:
+```bash
+php artisan l5-swagger:generate
+```
+
+### Auto Regeneration
+
+To automatically regenerate docs on every request (development only), set this in your `.env`:
+```env
+L5_SWAGGER_GENERATE_ALWAYS=true
+```
+
+> **Note:** Keep `L5_SWAGGER_GENERATE_ALWAYS=false` in production for performance reasons.
+
+---
+
+## Running Tests
+
+**Run all tests:**
+```bash
+php artisan test
+```
+
+**Run with coverage:**
+```bash
+php artisan test --coverage
+```
+
+**Run specific test file:**
+```bash
+php artisan test --filter AuthTest
+php artisan test --filter TagTest
+php artisan test --filter TranslationTest
+php artisan test --filter ExportTest
+```
+
+---
+
+## Performance
+
+| Endpoint | Target | Strategy |
+|---|---|---|
+| All endpoints | < 200ms | DB indexing + optimized queries |
+| Export endpoint | < 500ms | Redis caching + selective columns |
+| 100k+ records | Supported | Batch seeding + pagination |
+
+### CDN Support
+The JSON export endpoint returns standard JSON responses that can be cached and served via any CDN (CloudFront, Cloudflare, Fastly). To enable CDN caching, configure your CDN to cache `GET /api/export/{locale}` responses with an appropriate TTL. Cache invalidation should be triggered via CDN API whenever translations are updated.

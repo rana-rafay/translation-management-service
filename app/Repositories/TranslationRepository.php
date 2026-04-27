@@ -13,27 +13,28 @@ class TranslationRepository implements TranslationRepositoryInterface
 
     public function getAll(array $filters): LengthAwarePaginator
     {
-        $query = $this->model->with('tags');
+        $query = $this->model->with(['tags:id,name']);
 
-        if (!empty($filters['locale'])) {
+        if (! empty($filters['locale'])) {
             $query->where('locale', $filters['locale']);
         }
-        
-        if (!empty($filters['key'])) {
-            $query->where('key', 'like', '%' . $filters['key'] . '%');
+
+        if (! empty($filters['key'])) {
+            $query->whereFullText(['key', 'value'], $filters['key']);
         }
-        
-        if (!empty($filters['content'])) {
-            $query->where('value', 'like', '%' . $filters['content'] . '%');
+
+        if (! empty($filters['content'])) {
+            $query->whereFullText(['key', 'value'], $filters['content']);
         }
-        
-        if (!empty($filters['tag'])) { 
+
+        if (! empty($filters['tag'])) {
             $query->whereHas('tags', function ($q) use ($filters) {
                 $q->where('name', $filters['tag']);
             });
         }
 
-        return $query->paginate(50);
+        return $query->select(['id', 'locale', 'key', 'value', 'created_at', 'updated_at'])
+            ->paginate(50);
     }
 
     public function findById(int $id): object
@@ -80,6 +81,10 @@ class TranslationRepository implements TranslationRepositoryInterface
 
     public function getByLocale(string $locale): Collection
     {
-        return $this->model->where('locale', $locale)->get(['key', 'value']);
+        return $this->model
+            ->where('locale', $locale)
+            ->select(['key', 'value'])
+            ->orderBy('key')
+            ->get();
     }
 }

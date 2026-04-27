@@ -15,4 +15,11 @@ class Tag extends Model
     {
         return $this->belongsToMany(Translation::class, 'translation_tag');
     }
+
+    protected static function booted(): void
+    {
+        static::deleting(function (Tag $tag) {
+            $tag->translations()->detach();
+        });
+    }
 }
